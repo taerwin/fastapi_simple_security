@@ -31,6 +31,7 @@ class SQLiteAccess:
             api_key TEXT PRIMARY KEY,
             is_active INTEGER,
             never_expire INTEGER,
+            account_name TEXT,
             expiration_date TEXT,
             latest_query_date TEXT,
             total_queries INTEGER)
@@ -38,7 +39,7 @@ class SQLiteAccess:
             )
             connection.commit()
 
-    def create_key(self, never_expire) -> str:
+    def create_key(self, never_expire, account_name) -> str:
         api_key = str(uuid.uuid4())
 
         with sqlite3.connect(self.db_location) as connection:
@@ -46,16 +47,15 @@ class SQLiteAccess:
             c.execute(
                 """
                 INSERT INTO fastapi_simple_security 
-                (api_key, is_active, never_expire, expiration_date, latest_query_date, total_queries) 
-                VALUES(?, ?, ?, ?, ?, ?)
+                (api_key, is_active, never_expire, account_name, expiration_date, latest_query_date, total_queries) 
+                VALUES(?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     api_key,
                     1,
                     1 if never_expire else 0,
-                    (
-                        datetime.utcnow() + timedelta(days=self.expiration_limit)
-                    ).isoformat(timespec="seconds"),
+                    account_name,
+                    (datetime.utcnow() + timedelta(days=self.expiration_limit)).isoformat(timespec="seconds"),
                     None,
                     0,
                 ),
@@ -226,14 +226,14 @@ class SQLiteAccess:
         Returns usage stats for all API keys
 
         Returns:
-            a list of tuples with values being api_key, is_active, expiration_date, latest_query_date, and total_queries
+            a list of tuples with values being api_key, is_active, account_name, expiration_date, latest_query_date, and total_queries
         """
         with sqlite3.connect(self.db_location) as connection:
             c = connection.cursor()
 
             c.execute(
                 """
-            SELECT api_key, is_active, never_expire, expiration_date, latest_query_date, total_queries 
+            SELECT api_key, is_active, never_expire, account_name, expiration_date, latest_query_date, total_queries 
             FROM fastapi_simple_security
             ORDER BY latest_query_date DESC
             """,
